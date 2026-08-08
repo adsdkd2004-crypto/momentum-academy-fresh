@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-paper text-ink dark:bg-navy-900 dark:text-paper transition-colors duration-300;
+  }
+  ::selection {
+    @apply bg-momentum-300/50;
+  }
+}
+
+@layer components {
+  .container-app {
+    @apply mx-auto w-full max-w-6xl px-5 sm:px-8;
+  }
+  .card {
+    @apply rounded-xl2 bg-white dark:bg-navy-800 shadow-card border border-navy-100/70 dark:border-navy-700/60;
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-navy-700 px-6 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-navy-800 active:scale-[0.98];
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-navy-700/20 bg-white px-6 py-3 text-sm font-semibold text-navy-700 transition hover:bg-navy-50 active:scale-[0.98] dark:bg-transparent dark:text-paper dark:border-white/20 dark:hover:bg-white/5;
+  }
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-[0.18em] text-momentum-600 dark:text-momentum-300;
+  }
+}
+
+/* Momentum "growth line" signature accent */
+.growth-line {
+  stroke-dasharray: 240;
+  stroke-dashoffset: 240;
+  animation: drawLine 1.4s ease-out 0.2s forwards;
+}
+@keyframes drawLine {
+  to { stroke-dashoffset: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .growth-line { animation: none; stroke-dashoffset: 0; }
+  * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; }
+}
