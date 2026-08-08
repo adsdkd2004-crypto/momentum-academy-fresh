@@ -35,6 +35,7 @@ export interface Material {
   type: MaterialType;
   fileName: string;
   fileURL: string;
+  storagePath: string;
   fileSizeKB: number;
   uploadedAt: number;
   updatedAt: number;

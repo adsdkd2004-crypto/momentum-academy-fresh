@@ -4,3 +4,9 @@ out
 .env.local
 .DS_Store
 *.log
+
+firebase-admin-key.json
+
+.vscode/
+tsconfig.tsbuildinfo
+next-env.d.ts
