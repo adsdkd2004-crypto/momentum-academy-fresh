@@ -9,9 +9,9 @@ const serviceAccountPath = path.resolve(
   process.env.FIREBASE_SERVICE_ACCOUNT_PATH || "./firebase-admin-key.json"
 );
 
-const serviceAccount = JSON.parse(
-  fs.readFileSync(serviceAccountPath, "utf8")
-);
+const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON
+  ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON)
+  : JSON.parse(fs.readFileSync(serviceAccountPath, "utf8"));
 
 const adminApp =
   getApps().length > 0
