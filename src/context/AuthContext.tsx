@@ -67,8 +67,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
  const signInWithGoogle = async () => {
-  alert("Google button clicked");;
-  await signInWithRedirect(auth, googleProvider);
+  try {
+    alert("Google button clicked");
+    await signInWithRedirect(auth, googleProvider);
+  } catch (error) {
+    alert(String(error));
+  }
 };
   const signOut = async () => {
     await fbSignOut(auth);
