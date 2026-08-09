@@ -66,10 +66,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsub();
   }, []);
 
-  const signInWithGoogle = async () => {
-    await signInWithRedirect(auth, googleProvider);
-  };
-
+ const signInWithGoogle = async () => {
+  console.log("GOOGLE BUTTON CLICKED");
+  await signInWithRedirect(auth, googleProvider);
+};
   const signOut = async () => {
     await fbSignOut(auth);
   };
