@@ -9,7 +9,7 @@ import {
 } from "react";
 import {
   onAuthStateChanged,
-  signInWithRedirect,
+  signInWithPopup,
   signOut as fbSignOut,
   User,
 } from "firebase/auth";
@@ -67,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
 const signInWithGoogle = async () => {
-  await signInWithRedirect(auth, googleProvider);
+  await signInWithPopup(auth, googleProvider);
 };
   const signOut = async () => {
     await fbSignOut(auth);
