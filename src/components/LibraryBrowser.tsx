@@ -1,14 +1,37 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Search, Lock, Clock3 } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
-import { subscribeMaterials } from "@/lib/firestore";
-import MaterialCard from "./MaterialCard";
-import type { Material, MaterialType, SubjectName } from "@/types";
+import {
+  Lock,
+  Clock3,
+  ArrowLeft,
+  BookOpen,
+  FileText,
+  ClipboardList,
+} from "lucide-react";
 
-const SUBJECTS: SubjectName[] = ["Mathematics", "Science", "English", "Social Science"];
+import { useAuth } from "@/context/AuthContext";
+import {
+  subscribeChapters,
+  subscribeMaterials,
+} from "@/lib/firestore";
+
+import MaterialCard from "./MaterialCard";
+
+import type {
+  Chapter,
+  Material,
+  MaterialType,
+  SubjectName,
+} from "@/types";
+
+const SUBJECTS: SubjectName[] = [
+  "Mathematics",
+  "Science",
+  "English",
+  "Social Science",
+];
 
 export default function LibraryBrowser({
   title,
@@ -20,143 +43,443 @@ export default function LibraryBrowser({
   materialTypes: MaterialType[];
 }) {
   const { user, profile, loading, signInWithGoogle } = useAuth();
-  const [classId, setClassId] = useState<"class-9" | "class-10">("class-10");
-  const [subject, setSubject] = useState<SubjectName>("Mathematics");
-  const [search, setSearch] = useState("");
+
+  const [classId, setClassId] = useState<
+    "class-9" | "class-10" | null
+  >(null);
+
+  const [subject, setSubject] =
+    useState<SubjectName | null>(null);
+
+  const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [selectedChapter, setSelectedChapter] =
+    useState<Chapter | null>(null);
+
+  const [selectedType, setSelectedType] =
+    useState<MaterialType | null>(null);
+
   const [materials, setMaterials] = useState<Material[]>([]);
 
   const approved = profile?.status === "approved";
 
+  /*
+   * Load chapters whenever the student chooses
+   * a class + subject.
+   */
   useEffect(() => {
-    if (!approved) return;
-    const unsub = subscribeMaterials(classId, subject, materialTypes, setMaterials);
-    return () => unsub();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [classId, subject, approved]);
-
-  const grouped = useMemo(() => {
-    const filtered = materials.filter((m) =>
-      `${m.chapterTitle} ${m.fileName}`.toLowerCase().includes(search.toLowerCase())
-    );
-    const map = new Map<string, Material[]>();
-    for (const m of filtered) {
-      if (!map.has(m.chapterTitle)) map.set(m.chapterTitle, []);
-      map.get(m.chapterTitle)!.push(m);
+    if (!approved || !classId || !subject) {
+      setChapters([]);
+      return;
     }
-    return Array.from(map.entries());
-  }, [materials, search]);
+
+    const unsub = subscribeChapters(
+      classId,
+      subject,
+      setChapters
+    );
+
+    return () => unsub();
+  }, [approved, classId, subject]);
+
+  /*
+   * Load materials whenever the student chooses
+   * a class + subject.
+   */
+  useEffect(() => {
+    if (!approved || !classId || !subject) {
+      setMaterials([]);
+      return;
+    }
+
+    const unsub = subscribeMaterials(
+      classId,
+      subject,
+      materialTypes,
+      setMaterials
+    );
+
+    return () => unsub();
+  }, [approved, classId, subject, materialTypes]);
+
+  const chapterMaterials = selectedChapter
+    ? materials.filter(
+        (material) =>
+          material.chapterId === selectedChapter.id
+      )
+    : [];
+
+  const visibleMaterials = selectedType
+    ? chapterMaterials.filter(
+        (material) => material.type === selectedType
+      )
+    : [];
+
+  const resetToClasses = () => {
+    setClassId(null);
+    setSubject(null);
+    setSelectedChapter(null);
+    setSelectedType(null);
+  };
+
+  const resetToSubjects = () => {
+    setSubject(null);
+    setSelectedChapter(null);
+    setSelectedType(null);
+  };
+
+  const resetToChapters = () => {
+    setSelectedChapter(null);
+    setSelectedType(null);
+  };
 
   return (
     <section className="container-app py-14">
+
+      {/* Header */}
       <div className="mx-auto max-w-2xl text-center">
         <p className="eyebrow">{title}</p>
+
         <h1 className="mt-2 font-display text-3xl font-semibold text-navy-700 dark:text-paper sm:text-4xl">
           {title}
         </h1>
-        <p className="mt-3 text-navy-700/75 dark:text-paper/75">{description}</p>
+
+        <p className="mt-3 text-navy-700/75 dark:text-paper/75">
+          {description}
+        </p>
       </div>
 
+      {/* Login */}
       {!loading && !user && (
         <div className="mx-auto mt-10 max-w-md card flex flex-col items-center gap-3 p-8 text-center">
-          <Lock className="text-momentum-500" size={22} />
+          <Lock
+            className="text-momentum-500"
+            size={22}
+          />
+
           <p className="text-sm text-navy-700/75 dark:text-paper/75">
-            Login with Google to view and download study materials.
+            Login with Google to view and download
+            study materials.
           </p>
-          <button onClick={signInWithGoogle} className="btn-primary mt-1">
+
+          <button
+            onClick={signInWithGoogle}
+            className="btn-primary mt-1"
+          >
             Continue with Google
           </button>
         </div>
       )}
 
+      {/* Pending / rejected / suspended */}
       {!loading && user && !approved && (
         <div className="mx-auto mt-10 max-w-md card flex flex-col items-center gap-3 p-8 text-center">
-          <Clock3 className="text-momentum-500" size={22} />
+          <Clock3
+            className="text-momentum-500"
+            size={22}
+          />
+
           <p className="text-sm font-medium text-navy-700 dark:text-paper">
-            {profile?.status === "rejected" && "Your account request was not approved."}
-            {profile?.status === "suspended" && "Your account is currently suspended."}
-            {(!profile || profile.status === "pending") &&
+            {profile?.status === "rejected" &&
+              "Your account request was not approved."}
+
+            {profile?.status === "suspended" &&
+              "Your account is currently suspended."}
+
+            {(!profile ||
+              profile.status === "pending") &&
               "Your account is pending verification."}
           </p>
+
           <p className="text-xs text-navy-700/60 dark:text-paper/60">
-            {(!profile || profile.status === "pending") &&
+            {(!profile ||
+              profile.status === "pending") &&
               "Once your teacher approves your account, materials will unlock here automatically."}
           </p>
         </div>
       )}
 
+      {/* Main Library */}
       {approved && (
-        <div className="mt-10">
-          <div className="mx-auto flex max-w-3xl flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="flex rounded-full bg-navy-50 p-1 dark:bg-white/5">
-              {(["class-9", "class-10"] as const).map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setClassId(c)}
-                  className={`rounded-full px-4 py-2 text-xs font-semibold transition ${
-                    classId === c
-                      ? "bg-navy-700 text-white"
-                      : "text-navy-700/70 dark:text-paper/70"
-                  }`}
-                >
-                  {c === "class-9" ? "Class 9" : "Class 10"}
-                </button>
-              ))}
-            </div>
+        <div className="mx-auto mt-10 max-w-4xl">
 
-            <div className="flex flex-1 items-center gap-2 rounded-full border border-navy-100 bg-white px-4 py-2 dark:border-white/10 dark:bg-navy-800">
-              <Search size={16} className="text-navy-700/50 dark:text-paper/50" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search chapter or file name..."
-                className="w-full bg-transparent text-sm outline-none placeholder:text-navy-700/40 dark:text-paper dark:placeholder:text-paper/40"
-              />
-            </div>
-          </div>
+          {/* STEP 1 — CLASS */}
+          {!classId && (
+            <div>
+              <h2 className="font-display text-2xl font-semibold text-navy-700 dark:text-paper">
+                Select your class
+              </h2>
 
-          <div className="mx-auto mt-4 flex max-w-3xl flex-wrap gap-2">
-            {SUBJECTS.map((s) => (
-              <button
-                key={s}
-                onClick={() => setSubject(s)}
-                className={`rounded-full border px-4 py-2 text-xs font-medium transition ${
-                  subject === s
-                    ? "border-momentum-500 bg-momentum-50 text-momentum-700 dark:bg-momentum-500/10 dark:text-momentum-300"
-                    : "border-navy-100 text-navy-700/70 dark:border-white/10 dark:text-paper/70"
-                }`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-
-          <div className="mx-auto mt-8 max-w-3xl space-y-8">
-            {grouped.length === 0 && (
-              <p className="text-center text-sm text-navy-700/60 dark:text-paper/60">
-                No materials uploaded here yet — check back soon.
+              <p className="mt-2 text-sm text-navy-700/60 dark:text-paper/60">
+                Choose your class to continue.
               </p>
-            )}
-            {grouped.map(([chapterTitle, items]) => (
-              <div key={chapterTitle}>
-                <h3 className="font-display text-lg font-semibold text-navy-700 dark:text-paper">
-                  {chapterTitle}
-                </h3>
-                <div className="mt-3 grid gap-4 sm:grid-cols-2">
-                  {items.map((m) => (
-                    <MaterialCard key={m.id} material={m} />
-                  ))}
-                </div>
+
+              <div className="mt-6 grid gap-4 sm:grid-cols-2">
+
+                {(["class-9", "class-10"] as const).map(
+                  (c) => (
+                    <button
+                      key={c}
+                      onClick={() => setClassId(c)}
+                      className="card p-6 text-left transition hover:-translate-y-1 hover:border-momentum-500"
+                    >
+                      <BookOpen
+                        className="text-momentum-500"
+                        size={24}
+                      />
+
+                      <h3 className="mt-4 font-display text-xl font-semibold text-navy-700 dark:text-paper">
+                        {c === "class-9"
+                          ? "Class 9"
+                          : "Class 10"}
+                      </h3>
+
+                      <p className="mt-1 text-sm text-navy-700/60 dark:text-paper/60">
+                        View study materials
+                      </p>
+                    </button>
+                  )
+                )}
+
               </div>
-            ))}
-          </div>
+            </div>
+          )}
+
+          {/* STEP 2 — SUBJECT */}
+          {classId && !subject && (
+            <div>
+
+              <button
+                onClick={resetToClasses}
+                className="mb-6 flex items-center gap-2 text-sm text-navy-700/60 hover:text-navy-700 dark:text-paper/60 dark:hover:text-paper"
+              >
+                <ArrowLeft size={16} />
+                Back to classes
+              </button>
+
+              <h2 className="font-display text-2xl font-semibold text-navy-700 dark:text-paper">
+                {classId === "class-9"
+                  ? "Class 9"
+                  : "Class 10"}{" "}
+                Subjects
+              </h2>
+
+              <div className="mt-6 grid gap-4 sm:grid-cols-2">
+
+                {SUBJECTS.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setSubject(s)}
+                    className="card p-6 text-left transition hover:-translate-y-1 hover:border-momentum-500"
+                  >
+                    <BookOpen
+                      className="text-momentum-500"
+                      size={24}
+                    />
+
+                    <h3 className="mt-4 font-display text-lg font-semibold text-navy-700 dark:text-paper">
+                      {s}
+                    </h3>
+
+                    <p className="mt-1 text-sm text-navy-700/60 dark:text-paper/60">
+                      View chapters
+                    </p>
+                  </button>
+                ))}
+
+              </div>
+            </div>
+          )}
+
+          {/* STEP 3 — CHAPTERS */}
+          {classId && subject && !selectedChapter && (
+            <div>
+
+              <button
+                onClick={resetToSubjects}
+                className="mb-6 flex items-center gap-2 text-sm text-navy-700/60 hover:text-navy-700 dark:text-paper/60 dark:hover:text-paper"
+              >
+                <ArrowLeft size={16} />
+                Back to subjects
+              </button>
+
+              <h2 className="font-display text-2xl font-semibold text-navy-700 dark:text-paper">
+                {subject}
+              </h2>
+
+              <p className="mt-2 text-sm text-navy-700/60 dark:text-paper/60">
+                Select a chapter.
+              </p>
+
+              <div className="mt-6 space-y-3">
+
+                {chapters.map((chapter) => (
+                  <button
+                    key={chapter.id}
+                    onClick={() =>
+                      setSelectedChapter(chapter)
+                    }
+                    className="card flex w-full items-center gap-4 p-5 text-left transition hover:border-momentum-500"
+                  >
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-momentum-50 text-momentum-600 dark:bg-momentum-500/10 dark:text-momentum-300">
+                      <BookOpen size={20} />
+                    </div>
+
+                    <div>
+                      <h3 className="font-display text-base font-semibold text-navy-700 dark:text-paper">
+                        {chapter.title}
+                      </h3>
+
+                      <p className="mt-1 text-xs text-navy-700/60 dark:text-paper/60">
+                        Open chapter
+                      </p>
+                    </div>
+                  </button>
+                ))}
+
+                {chapters.length === 0 && (
+                  <p className="py-8 text-center text-sm text-navy-700/60 dark:text-paper/60">
+                    No chapters available yet.
+                  </p>
+                )}
+
+              </div>
+            </div>
+          )}
+
+          {/* STEP 4 — MATERIAL TYPE */}
+          {selectedChapter && !selectedType && (
+            <div>
+
+              <button
+                onClick={resetToChapters}
+                className="mb-6 flex items-center gap-2 text-sm text-navy-700/60 hover:text-navy-700 dark:text-paper/60 dark:hover:text-paper"
+              >
+                <ArrowLeft size={16} />
+                Back to chapters
+              </button>
+
+              <h2 className="font-display text-2xl font-semibold text-navy-700 dark:text-paper">
+                {selectedChapter.title}
+              </h2>
+
+              <p className="mt-2 text-sm text-navy-700/60 dark:text-paper/60">
+                Choose what you want to study.
+              </p>
+
+              <div className="mt-6 grid gap-4 sm:grid-cols-2">
+
+                {materialTypes.includes(
+                  "Handwritten Notes"
+                ) && (
+                  <button
+                    onClick={() =>
+                      setSelectedType(
+                        "Handwritten Notes"
+                      )
+                    }
+                    className="card p-6 text-left transition hover:-translate-y-1 hover:border-momentum-500"
+                  >
+                    <FileText
+                      className="text-momentum-500"
+                      size={25}
+                    />
+
+                    <h3 className="mt-4 font-display text-lg font-semibold text-navy-700 dark:text-paper">
+                      Handwritten Notes
+                    </h3>
+
+                    <p className="mt-1 text-sm text-navy-700/60 dark:text-paper/60">
+                      View handwritten chapter notes
+                    </p>
+                  </button>
+                )}
+
+                {materialTypes.includes(
+                  "Question & Answer"
+                ) && (
+                  <button
+                    onClick={() =>
+                      setSelectedType(
+                        "Question & Answer"
+                      )
+                    }
+                    className="card p-6 text-left transition hover:-translate-y-1 hover:border-momentum-500"
+                  >
+                    <ClipboardList
+                      className="text-momentum-500"
+                      size={25}
+                    />
+
+                    <h3 className="mt-4 font-display text-lg font-semibold text-navy-700 dark:text-paper">
+                      Question & Answer
+                    </h3>
+
+                    <p className="mt-1 text-sm text-navy-700/60 dark:text-paper/60">
+                      Practice questions and answers
+                    </p>
+                  </button>
+                )}
+
+              </div>
+            </div>
+          )}
+
+          {/* STEP 5 — PDF */}
+          {selectedChapter && selectedType && (
+            <div>
+
+              <button
+                onClick={() => setSelectedType(null)}
+                className="mb-6 flex items-center gap-2 text-sm text-navy-700/60 hover:text-navy-700 dark:text-paper/60 dark:hover:text-paper"
+              >
+                <ArrowLeft size={16} />
+                Back to material types
+              </button>
+
+              <h2 className="font-display text-2xl font-semibold text-navy-700 dark:text-paper">
+                {selectedType}
+              </h2>
+
+              <p className="mt-2 text-sm text-navy-700/60 dark:text-paper/60">
+                {selectedChapter.title}
+              </p>
+
+              <div className="mt-6 grid gap-4 sm:grid-cols-2">
+
+                {visibleMaterials.map((material) => (
+                  <MaterialCard
+                    key={material.id}
+                    material={material}
+                  />
+                ))}
+
+              </div>
+
+              {visibleMaterials.length === 0 && (
+                <p className="py-10 text-center text-sm text-navy-700/60 dark:text-paper/60">
+                  No material uploaded here yet.
+                </p>
+              )}
+
+            </div>
+          )}
+
         </div>
       )}
 
       {!loading && !user && (
         <p className="mt-8 text-center text-xs text-navy-700/50 dark:text-paper/50">
-          New here? <Link href="/login?mode=register" className="text-momentum-600 underline">Register</Link> with your Gmail account.
+          New here?{" "}
+          <Link
+            href="/login?mode=register"
+            className="text-momentum-600 underline"
+          >
+            Register
+          </Link>{" "}
+          with your Gmail account.
         </p>
       )}
+
     </section>
   );
 }
