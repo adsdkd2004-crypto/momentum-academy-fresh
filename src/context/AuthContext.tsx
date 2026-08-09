@@ -67,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
  const signInWithGoogle = async () => {
-  console.log("GOOGLE BUTTON CLICKED");
+  alert("Google button clicked");;
   await signInWithRedirect(auth, googleProvider);
 };
   const signOut = async () => {
